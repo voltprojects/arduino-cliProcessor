@@ -1,3 +1,7 @@
+#define CLIPROCESSER_CPP 1
+#ifndef CLIPROCESSER_H
+#include "cliProcesser.h"
+#endif
 /**
 * @author Rhys Bryant <rhys@voltprojects.com>
 * basic command processing support for Arduino
@@ -8,6 +12,8 @@
 /**
 * command result. contains return value from the command (if any) and a error Code
 **/
+
+
 class CmdResult {
 public:
     char* value;
@@ -98,7 +104,6 @@ public:
             return 0.0;
     }
 };
-char CliHelpers::tmp[10]="";
 typedef CmdResult (*cli_cmd_cb)(char* cmd);
 
 class CliProcesser {
@@ -129,141 +134,141 @@ public:
     * @param cmd_cb the method to call. must return CmdResult and have one param, char*
     * @example CmdResult(char* data){return cmdResult("there was no error");}
     **/
-    void addCmd(char* cmd,char* subCmd,cli_cmd_cb cmd_cb){
-		if(index>=COMAND_ARRAY_SIZE) {
-			return;
-		}
-		cmds[index].cmd=cmd;
-		cmds[index].subCmd=subCmd;
-		cmds[index].callback=cmd_cb;
-		index++;
-	}
-/**
-* @return the first unused array index from the fixed size array
-**/
-int findFreeChaneIndex() {
-    for(int i=0; i<COMMAND_CHANE_SIZE; i++)
-        if(chanedCommand[i].startTime==0)
-            return i;
-    return 0;
-}
-/**
-* checks for delayed commands to run
-**/
-void checkCommandChane() {
-    for(int i=0; i<COMMAND_CHANE_SIZE; i++) {
-        if(chanedCommand[i].command && chanedCommand[i].isTimeUp()) {
-            processCommand(chanedCommand[i].command);//run the command
-            if(chanedCommand[i].command) {
-                delete[] chanedCommand[i].command;
-                chanedCommand[i].command=NULL;
+    void addCmd(char* cmd,char* subCmd,cli_cmd_cb cmd_cb) {
+        if(index>=COMAND_ARRAY_SIZE) {
+            return;
+        }
+        cmds[index].cmd=cmd;
+        cmds[index].subCmd=subCmd;
+        cmds[index].callback=cmd_cb;
+        index++;
+    }
+    /**
+    * @return the first unused array index from the fixed size array
+    **/
+    int findFreeChaneIndex() {
+        for(int i=0; i<COMMAND_CHANE_SIZE; i++)
+            if(chanedCommand[i].startTime==0)
+                return i;
+        return 0;
+    }
+    /**
+    * checks for delayed commands to run
+    **/
+    void checkCommandChane() {
+        for(int i=0; i<COMMAND_CHANE_SIZE; i++) {
+            if(chanedCommand[i].command && chanedCommand[i].isTimeUp()) {
+                processCommand(chanedCommand[i].command);//run the command
+                if(chanedCommand[i].command) {
+                    delete[] chanedCommand[i].command;
+                    chanedCommand[i].command=NULL;
+                }
             }
         }
-    }
 
-}
-/**
-* check for new incoming data
-* @return void
-**/
-void checkSerial() {
-    int length=Serial.available();
-    char tmp[2]="";
-    if(length>0) {
-        for(int l=0; l<length && bufferLength<bufferSize; l++) {
-            tmp[0]=Serial.read();
+    }
+    /**
+    * check for new incoming data
+    * @return void
+    **/
+    void checkSerial() {
+        int length=Serial.available();
+        char tmp[2]="";
+        if(length>0) {
+            for(int l=0; l<length && bufferLength<bufferSize; l++) {
+                tmp[0]=Serial.read();
+                strcat(buffer,tmp);
+            }
+            tmp[0]='\0';
             strcat(buffer,tmp);
         }
-        tmp[0]='\0';
-        strcat(buffer,tmp);
-    }
-    if(strlen(buffer)>1 && strpbrk(buffer,"\n")) {
-        //we have data in our buffer lets check it out
+        if(strlen(buffer)>1 && strpbrk(buffer,"\n")) {
+            //we have data in our buffer lets check it out
 
-        char * line;
-        strcat(buffer,"END");//append END to our buffer so we know when we've hit the end
-        line = strtok (buffer,"\n");
-        while (true)
-        {
+            char * line;
+            strcat(buffer,"END");//append END to our buffer so we know when we've hit the end
+            line = strtok (buffer,"\n");
+            while (true)
+            {
 
-            if(line) {
-                //is this line the last?
-                char* p=strstr(line,"END");
-                if(p && strcmp(p,"END")==0) {
-                    if(strcmp(line,"END")==0)
-                        strcpy(buffer,"");
-                    else {
-                        //the buffer dose not end with \n we are still waiting on the rest of the command
-                        strcpy(buffer,"");
-                        strncat(buffer,line,strlen(line)-3);
-                    }
-                }
-                else {
-                    //we have recived a full line. parse it.
-                    processCommand(line);
-                }
-            }
-            else
-                break;
-            line = strtok (NULL, "\n");
-        }
-    }
-    //check for delayed commands
-    checkCommandChane();
-}
-/**
-* proceses the command looks up the name and subname and calls the callback
-* @return void
-* @param the command data to parse.
-**/
-void processCommand(char* data) {
-    char cmd[10]="";
-    char subCmd[10]="";
-    char v[20];
-    char delayCmd[50];
-    int delayLength=0;
-    int count=sscanf(data,"%s %s %s delay %d %[^\n]",cmd,subCmd,v,&delayLength,delayCmd);
-    bool found=false;
-    for(int i=0; i<index; i++) {
-        if(strcmp(cmds[i].cmd,cmd)==0) {
-            if(strcmp(cmds[i].subCmd,subCmd)==0) {
-                //when we have a mach for the command and sub command call the callback
-                found=true;
-                CmdResult result=cmds[i].callback(data);
-                char out[30];
-                if(result.errorCode>0) {//if the error code is 0 then there was no error
-                    sprintf(out,"%s%s err,%d",cmd,subCmd,result.errorCode);
-                }
-                else {
-                    //if the result contains a value. add the value to the returned result. and free up the memory
-                    if(*result.value) {
-                        sprintf(out,"%s%s ok,%s",cmd,subCmd,result.value);
-                        delete[] result.value;
+                if(line) {
+                    //is this line the last?
+                    char* p=strstr(line,"END");
+                    if(p && strcmp(p,"END")==0) {
+                        if(strcmp(line,"END")==0)
+                            strcpy(buffer,"");
+                        else {
+                            //the buffer dose not end with \n we are still waiting on the rest of the command
+                            strcpy(buffer,"");
+                            strncat(buffer,line,strlen(line)-3);
+                        }
                     }
                     else {
-                        //the result dose not contain a value
-                        sprintf(out,"%s%s ok",cmd,subCmd);
+                        //we have recived a full line. parse it.
+                        processCommand(line);
                     }
+                }
+                else
+                    break;
+                line = strtok (NULL, "\n");
+            }
+        }
+        //check for delayed commands
+        checkCommandChane();
+    }
+    /**
+    * proceses the command looks up the name and subname and calls the callback
+    * @return void
+    * @param the command data to parse.
+    **/
+    void processCommand(char* data) {
+        char cmd[10]="";
+        char subCmd[10]="";
+        char v[20];
+        char delayCmd[50];
+        int delayLength=0;
+        int count=sscanf(data,"%s %s %s delay %d %[^\n]",cmd,subCmd,v,&delayLength,delayCmd);
+        bool found=false;
+        for(int i=0; i<index; i++) {
+            if(strcmp(cmds[i].cmd,cmd)==0) {
+                if(strcmp(cmds[i].subCmd,subCmd)==0) {
+                    //when we have a mach for the command and sub command call the callback
+                    found=true;
+                    CmdResult result=cmds[i].callback(data);
+                    char out[30];
+                    if(result.errorCode>0) {//if the error code is 0 then there was no error
+                        sprintf(out,"%s%s err,%d",cmd,subCmd,result.errorCode);
+                    }
+                    else {
+                        //if the result contains a value. add the value to the returned result. and free up the memory
+                        if(*result.value) {
+                            sprintf(out,"%s%s ok,%s",cmd,subCmd,result.value);
+                            delete[] result.value;
+                        }
+                        else {
+                            //the result dose not contain a value
+                            sprintf(out,"%s%s ok",cmd,subCmd);
+                        }
+
+                    }
+                    //send the result
+                    Serial.println(out);
 
                 }
-                //send the result
-                Serial.println(out);
 
             }
 
         }
-
+        //if no nmaching command was found send an error status
+        if(!found) {
+            char out[30];
+            sprintf(out,"%s%s err,1",cmd,subCmd);
+            Serial.println(out);
+        }
+        if(count==5) {
+            //add a delayed cmd
+            int index=findFreeChaneIndex();
+            chanedCommand[index]=ChanedCommand(delayCmd,delayLength);
+        }
     }
-    //if no nmaching command was found send an error status
-    if(!found) {
-        char out[30];
-        sprintf(out,"%s%s err,1",cmd,subCmd);
-        Serial.println(out);
-    }
-    if(count==5) {
-        //add a delayed cmd
-        int index=findFreeChaneIndex();
-        chanedCommand[index]=ChanedCommand(delayCmd,delayLength);
-    }
-}
 };
