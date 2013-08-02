@@ -1,7 +1,7 @@
-arduino-cliProcesser
+arduino-cliProcessor
 ====================
 
-basic command line processer based for Arduino
+basic command line processor based for Arduino
 
 to use simply extract the contents of the archive
 to the Arduino Program's libraries directory this can usually be found under your Documents directory
