@@ -1,6 +1,6 @@
-#define CLIPROCESSER_CPP 1
-#ifndef CLIPROCESSER_H
-#include "cliProcesser.h"
+#define CLIprocessor_CPP 1
+#ifndef CLIprocessor_H
+#include "cliProcessor.h"
 #endif
 /**
 * @author Rhys Bryant <rhys@voltprojects.com>
@@ -8,7 +8,13 @@
 * I make no clam to be a (real) c++ programmer. if you can see a better way please let me know or report a bug
 * @copyright Rhys Bryant <rhys@voltprojects.com>
 *
+* This code is provided "AS IS" without warranty of any kind.
+*   In no event shall the author be held liable for any damages arising from the
+*   use of this code.
+* @licence LGPL
+* this notice MUST not be removed
 */
+
 /**
 * command result. contains return value from the command (if any) and a error Code
 **/
@@ -106,7 +112,7 @@ public:
 };
 typedef CmdResult (*cli_cmd_cb)(char* cmd);
 
-class CliProcesser {
+class CliProcessor {
 private:
     class Cmd {
     public:
@@ -121,7 +127,7 @@ public:
     int bufferSize;
     int bufferLength;
     char buffer[90];
-    CliProcesser() {
+    CliProcessor() {
         index=0;
         bufferLength=0;
         bufferSize=77;

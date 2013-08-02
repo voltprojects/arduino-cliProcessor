@@ -1,11 +1,11 @@
 /*
-@link https://github.com/voltprojects/arduino-cliProcesser
-example for CliProcesser By Rhys Bryant. to use.
+@link https://github.com/voltprojects/arduino-cliprocessor
+example for Cliprocessor By Rhys Bryant. to use.
 type "led on" or "led off" in the serial monitor (without the quotes) and press enter.
 Make sure line ending is set to "newline" 
 */
-#include <cliProcesser.h>
-CliProcesser cli;
+#include <cliProcessor.h>
+CliProcessor cli;
 
 //basic examples
 /**

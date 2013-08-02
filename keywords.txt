@@ -2,7 +2,7 @@
 #######################################
 # Datatypes (KEYWORD1)
 #######################################
-CliProcesser	KEYWORD1
+Cliprocessor	KEYWORD1
 CmdResult	KEYWORD1
 SetCmd	KEYWORD1
 CliHelpers KEYWORD1
