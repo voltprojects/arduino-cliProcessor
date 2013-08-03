@@ -11,3 +11,5 @@ led on
 led off
 set pin {pin_number_here}={1 or 0} eg set pin 13=1 or set pin 11=0
 get pin {pin_number_here}
+the library also supports delaying commands see the following
+led on delay 500 led off
