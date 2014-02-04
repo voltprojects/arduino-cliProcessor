@@ -5,9 +5,10 @@
 /**
 * @author Rhys Bryant <rhys@voltprojects.com>
 * basic command processing support for Arduino
-* I make no clam to be a (real) c++ programmer. if you can see a better way please let me know or report a bug
-* @copyright Rhys Bryant <rhys@voltprojects.com>
+* if you can see an issue or better way please report a bug
+* @copyright Rhys Bryant <code@voltprojects.com>
 *
+* === Legal Jargen  ===
 * This code is provided "AS IS" without warranty of any kind.
 *   In no event shall the author be held liable for any damages arising from the
 *   use of this code.
@@ -19,22 +20,6 @@
 * command result. contains return value from the command (if any) and a error Code
 **/
 
-
-class CmdResult {
-public:
-    char* value;
-    int errorCode;
-    CmdResult(int errCode) {
-        errorCode=errCode;
-        value="";
-    }
-    CmdResult(char* _value) {
-        //copy the refenced value into the new memory location
-        value=new char[strlen(_value)+1];
-        strcpy(value,_value);
-        errorCode=0;
-    }
-};
 class ChanedCommand {
 public:
     char* command;
@@ -110,6 +95,28 @@ public:
             return 0.0;
     }
 };
+/**
+* class for storing the result of the command
+*
+**/
+class CmdResult {
+public:
+    char* value;
+    int errorCode;
+    CmdResult(int errCode) {
+        errorCode=errCode;
+        value="";
+    }
+    CmdResult(char* _value) {
+        //copy the refenced value into the new memory location
+        value=new char[strlen(_value)+1];
+        strcpy(value,_value);
+        errorCode=0;
+    }
+	CmdResult(){
+		errorCode=-1;
+	}
+};
 typedef CmdResult (*cli_cmd_cb)(char* cmd);
 
 class CliProcessor {
@@ -123,6 +130,101 @@ private:
     Cmd cmds[COMAND_ARRAY_SIZE];
     ChanedCommand chanedCommand[COMMAND_CHANE_SIZE];
     int index;
+    /**
+    * proceses the command looks up the name and subname and calls the callback
+    * @return void
+    * @param the command data to parse.
+    **/
+    void processCommand(char* data) {
+        char cmd[10]="";
+        char subCmd[10]="";
+        char v[20];
+        char delayCmd[50];
+        int delayLength=0;
+        int count=sscanf(data,"%s %s %s delay %d %[^\n]",cmd,subCmd,v,&delayLength,delayCmd);
+        bool found=false;
+        for(int i=0; i<index; i++) {
+            if(strcmp(cmds[i].cmd,cmd)==0) {
+                if(strcmp(cmds[i].subCmd,subCmd)==0) {
+                    //when we have a mach for the command and sub command call the callback
+                    found=true;
+                    CmdResult result=cmds[i].callback(data);
+					sendResponse(cmd,subCmd,result);
+
+                }
+
+            }
+
+        }
+        //if no nmaching command was found send an error status
+        if(!found) {
+            char out[30];
+            sprintf(out,"%s%s err,1",cmd,subCmd);
+            Serial.println(out);
+        }
+        if(count==5) {
+            //add a delayed cmd
+            int index=findFreeChaneIndex();
+            chanedCommand[index]=ChanedCommand(delayCmd,delayLength);
+        }
+    }
+	/**
+	* send response
+	* @param the command name to use in the response
+	* @param the subCmd name to use in the response
+	* @param the result to send
+	* @return void
+	**/
+	void sendResponse(char* cmd,char* subCmd,CmdResult& result){
+		char out[20];//buffer length for output
+		bool resultSent=false;
+		if(result.errorCode==-1)
+			return;
+		if(result.errorCode>0) {//if the error code is 0 then there was no error
+			sprintf(out,"%s%s err,%d",cmd,subCmd,result.errorCode);
+		}
+		else {
+			//if the result contains a value. output the value directly. and free up the memory
+			if(*result.value) {
+				sprintf(out,"%s%s ok,",cmd,subCmd);
+				Serial.print(out);
+				Serial.println(result.value);
+				resultSent=true;
+				delete[] result.value;
+			}
+			else {
+				//the result dose not contain a value
+				sprintf(out,"%s%s ok",cmd,subCmd);
+			}
+		}
+		//send the result
+		if(!resultSent)
+			Serial.println(out);
+	}
+    /**
+    * @return the first unused array index from the fixed size array
+    **/
+    int findFreeChaneIndex() {
+        for(int i=0; i<COMMAND_CHANE_SIZE; i++)
+            if(chanedCommand[i].startTime==0)
+                return i;
+        return 0;
+    }
+    /**
+    * checks for delayed commands to run
+    **/
+    void checkCommandChane() {
+        for(int i=0; i<COMMAND_CHANE_SIZE; i++) {
+            if(chanedCommand[i].command && chanedCommand[i].isTimeUp()) {
+                processCommand(chanedCommand[i].command);//run the command
+                if(chanedCommand[i].command) {
+                    delete[] chanedCommand[i].command;
+                    chanedCommand[i].command=NULL;
+                }
+            }
+        }
+
+    }
 public:
     int bufferSize;
     int bufferLength;
@@ -149,30 +251,15 @@ public:
         cmds[index].callback=cmd_cb;
         index++;
     }
-    /**
-    * @return the first unused array index from the fixed size array
-    **/
-    int findFreeChaneIndex() {
-        for(int i=0; i<COMMAND_CHANE_SIZE; i++)
-            if(chanedCommand[i].startTime==0)
-                return i;
-        return 0;
-    }
-    /**
-    * checks for delayed commands to run
-    **/
-    void checkCommandChane() {
-        for(int i=0; i<COMMAND_CHANE_SIZE; i++) {
-            if(chanedCommand[i].command && chanedCommand[i].isTimeUp()) {
-                processCommand(chanedCommand[i].command);//run the command
-                if(chanedCommand[i].command) {
-                    delete[] chanedCommand[i].command;
-                    chanedCommand[i].command=NULL;
-                }
-            }
-        }
-
-    }
+	/**
+	* send Async response (response without a request from the client device)
+	* @param the command name to use in the response
+	* @param the result to send
+	* @return void
+	**/
+	void aSyncResponse(char* cmd,CmdResult result){
+		sendResponse(cmd,"",result);
+	}
     /**
     * check for new incoming data
     * @return void
@@ -221,60 +308,5 @@ public:
         }
         //check for delayed commands
         checkCommandChane();
-    }
-    /**
-    * proceses the command looks up the name and subname and calls the callback
-    * @return void
-    * @param the command data to parse.
-    **/
-    void processCommand(char* data) {
-        char cmd[10]="";
-        char subCmd[10]="";
-        char v[20];
-        char delayCmd[50];
-        int delayLength=0;
-        int count=sscanf(data,"%s %s %s delay %d %[^\n]",cmd,subCmd,v,&delayLength,delayCmd);
-        bool found=false;
-        for(int i=0; i<index; i++) {
-            if(strcmp(cmds[i].cmd,cmd)==0) {
-                if(strcmp(cmds[i].subCmd,subCmd)==0) {
-                    //when we have a mach for the command and sub command call the callback
-                    found=true;
-                    CmdResult result=cmds[i].callback(data);
-                    char out[30];
-                    if(result.errorCode>0) {//if the error code is 0 then there was no error
-                        sprintf(out,"%s%s err,%d",cmd,subCmd,result.errorCode);
-                    }
-                    else {
-                        //if the result contains a value. add the value to the returned result. and free up the memory
-                        if(*result.value) {
-                            sprintf(out,"%s%s ok,%s",cmd,subCmd,result.value);
-                            delete[] result.value;
-                        }
-                        else {
-                            //the result dose not contain a value
-                            sprintf(out,"%s%s ok",cmd,subCmd);
-                        }
-
-                    }
-                    //send the result
-                    Serial.println(out);
-
-                }
-
-            }
-
-        }
-        //if no nmaching command was found send an error status
-        if(!found) {
-            char out[30];
-            sprintf(out,"%s%s err,1",cmd,subCmd);
-            Serial.println(out);
-        }
-        if(count==5) {
-            //add a delayed cmd
-            int index=findFreeChaneIndex();
-            chanedCommand[index]=ChanedCommand(delayCmd,delayLength);
-        }
     }
 };

@@ -6,10 +6,14 @@ Cliprocessor	KEYWORD1
 CmdResult	KEYWORD1
 SetCmd	KEYWORD1
 CliHelpers KEYWORD1
+JsonArray KEYWORD1
+JsonObject KEYWORD1
 #######################################
 # Methods and Functions (KEYWORD2)
 #######################################
 checkSerial	KEYWORD2
 addCmd	KEYWORD2
+aSyncResponse	KEYWORD2
 pin	KEYWORD2
 value KEYWORD2
+addEntry

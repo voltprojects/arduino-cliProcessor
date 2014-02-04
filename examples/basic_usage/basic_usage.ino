@@ -27,7 +27,8 @@ void setup(){
   pinMode(13,OUTPUT);//set pin 13 to output mode
   cli.addCmd("led","on",led_on);
   cli.addCmd("led","off",led_off);
-  Serial.println("welcome, please type a command");
+  //send a message without first receiving a request. using the standard format used by this library
+  cli.aSyncResponse("welcome", "please type a command");
 }
 void loop(){
   cli.checkSerial();//check for new incoming commands

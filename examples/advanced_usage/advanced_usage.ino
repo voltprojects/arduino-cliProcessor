@@ -38,6 +38,28 @@ CmdResult get_pin(char* data) {
         return CmdResult(tmp);//non error values must always be char*
     }
 }
+/**
+* JSON demo
+* get the details of all pins in json format
+* why? formatting data in a standard format allows it to be more easly read by software. this demo uses
+* JSON see http://en.wikipedia.org/wiki/JSON
+**/
+CmdResult get_all(char* data){
+	JsonArray items;
+        
+	cli.aSyncResponse("getall", " ");//becouse we are not using a buffer we have to manualy format the response
+	items.disableBuffer();//send directly instead of using a buffer
+	for(int i=0;i<13;i++){
+		JsonObject j;
+		j.addEntry("mode","IN");
+		j.addEntry("pin",CliHelpers::getValue(i));
+		j.addEntry("state",(char*)(digitalRead(i)==HIGH?"HIGH":"LOW"));
+		items.addEntry(j);
+        Serial.println();//for user readabilty
+	}
+    items.close();//add the final ] to the output
+	return CmdResult();// do not send any result
+}
 //basic examples
 /**
 * callback for led_on
@@ -57,14 +79,15 @@ void setup(){
   Serial.begin(9600);//setup the serial port
   pinMode(13,OUTPUT);//set pin 13 to output mode
   cli.addCmd("get","pin",get_pin);
+  cli.addCmd("get","all",get_all);
   cli.addCmd("set","pin",set_pin);
   cli.addCmd("led","on",led_on);
   cli.addCmd("led","off",led_off);
-  Serial.println("welcome, please type a command");
+  //send a message without first receiving a request. using the standard format used by this library
+  cli.aSyncResponse("welcome", "please type a command");
 }
 void loop(){
   cli.checkSerial();//check for new incoming commands
   delay(10);
   
 }
-
